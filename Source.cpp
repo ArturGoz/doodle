@@ -1,8 +1,29 @@
 #include <SFML/Graphics.hpp>
+#include <iostream>
 #include <time.h>
 #include <vector>
 
 using namespace sf;
+
+
+class Game {
+public:
+    int x, y, h;
+    float dx, dy;
+    Game() {
+        x = 100;
+        y = 100;
+        h = 200;
+        dx = 0;
+        dy = 0;
+
+    }
+    void TurnDown()
+    {
+        dy += 0.2;
+        y += dy;
+    }
+};
 
 class Platform {
 public:
@@ -47,6 +68,14 @@ public:
         return 0.0f;
     }
 
+    void TouchToGreenPlatform(int x, int y, float& dy, int index)
+    {
+        if ((x + 50 > getPlatformX(index)) && (x + 20 < getPlatformX(index) + 68) && (y + 70 > getPlatformY(index)) && (y + 70 < getPlatformY(index) + 14) && (dy > 0))
+        {
+            dy = -10;
+        }
+    }
+
 
 protected:
     std::vector<Vector2f> plat;
@@ -54,17 +83,18 @@ protected:
 
 class WhitePlatform : public Platform {
 public:
+
     //поліморфізм
-    void drawPlatforms(RenderWindow& app, Sprite& sPlat, Sprite& sWhitePlat) {
-        for (int i = 0; i < 5; ++i) {
-            sPlat.setPosition(getPlatformX(i), getPlatformY(i));
-            sWhitePlat.setPosition(getPlatformX(i + 5), getPlatformY(i + 5));
-            app.draw(sPlat);
+    void drawPlatforms(RenderWindow& app, Sprite& sWhitePlat) {
+        for (int i = 0; i < plat.size(); ++i) {
+          //  sPlat.setPosition(getPlatformX(i), getPlatformY(i));
+            sWhitePlat.setPosition(getPlatformX(i), getPlatformY(i));
+        //    app.draw(sPlat);
             app.draw(sWhitePlat);
         }
     }
     void settakenWhitePlatforms(int index, bool boolean) {
-        if (index >= 0 && index < 5) {
+        if (index >= 0 && index < plat.size()) {
             takenWhitePlatforms[index] = boolean;
         }
     }
@@ -74,48 +104,99 @@ public:
         }
         return false;
     }
-     void movePlatforms(float dy, int& y, int& h) override {
+    void movePlatforms(float dy, int& y, int& h) override {
         for (size_t i = 0; i < plat.size(); ++i) {
             y = h;
             plat[i].y = plat[i].y + dy;
             if (plat[i].y > 533) {
+                if(gettakenWhitePlatforms(i))
                 settakenWhitePlatforms(i, false);
                 plat[i].y = 0;
                 plat[i].x = rand() % 400;
             }
         }
     }
-protected:
+
+    void TouchToWhitePlatform(int x, int y, float& dy, int index)
+    {
+        if ((x + 50 > getPlatformX(index)) && (x + 20 < getPlatformX(index) + 68) && (y + 70 > getPlatformY(index)) && (y + 70 < getPlatformY(index) + 14) && (dy > 0) && !gettakenWhitePlatforms(index))
+        {
+
+            dy = -10;
+
+            settakenWhitePlatforms(index , true);
+        }
+    }
+
+
+private:
     bool takenWhitePlatforms[5] = { false, false, false, false, false };
 };
 
-void LoadTextures(Texture& t1, Texture& t2, Texture& t3, Texture& t4, Texture& t5) {
 
-    t1.loadFromFile("C:/Users/artur/OneDrive/Рабочий стол/дудл/background.png");
-    t2.loadFromFile("C:/Users/artur/OneDrive/Рабочий стол/дудл/platform.png");
-    t3.loadFromFile("C:/Users/artur/OneDrive/Рабочий стол/дудл/doodle.png");
-    t4.loadFromFile("C:/Users/artur/OneDrive/Рабочий стол/дудл/WhitePlatform.png");
-    t5.loadFromFile("C:/Users/artur/OneDrive/Рабочий стол/дудл/BluePlatfrom.png");
+class TextureManager {
+public:
+    TextureManager() {
+        LoadTextures();
+    }
 
-}
+    Texture& getTexture(int index) {
+        return textures[index];
+    }
 
-// Other classes remain the same
+private:
+    Texture textures[5]; 
+
+    void LoadTextures() {
+        if (!textures[0].loadFromFile("C:/Users/artur/OneDrive/Рабочий стол/дудл/background.png"))
+            std::cerr << "Failed to load background.png" << std::endl;
+
+        if (!textures[1].loadFromFile("C:/Users/artur/OneDrive/Рабочий стол/дудл/platform.png"))
+            std::cerr << "Failed to load platform.png" << std::endl;
+
+        if (!textures[2].loadFromFile("C:/Users/artur/OneDrive/Рабочий стол/дудл/doodle.png"))
+            std::cerr << "Failed to load doodle.png" << std::endl;
+
+        if (!textures[3].loadFromFile("C:/Users/artur/OneDrive/Рабочий стол/дудл/WhitePlatform.png"))
+            std::cerr << "Failed to load WhitePlatform.png" << std::endl;
+
+        if (!textures[4].loadFromFile("C:/Users/artur/OneDrive/Рабочий стол/дудл/BluePlatfrom.png"))
+            std::cerr << "Failed to load BluePlatfrom.png" << std::endl;
+    }
+};
+
+class MovingPlatform : public Platform
+{
+
+};
+
 
 int main() {
-    int WX = -1;
+
+
     srand(time(0));
+
     RenderWindow app(VideoMode(400, 533), "MyDoodleGame");
+
     app.setFramerateLimit(60);
 
-    Texture t1, t2, t3, t4, t5;
-    LoadTextures(t1, t2, t3, t4, t5);
-    Sprite sBackground(t1), sPlat(t2), sPers(t3), sWhitePlat(t4), sBluePlatfrom(t5);
+    TextureManager textureManager;
 
-    int x = 100, y = 100, h = 200;
-    float dx = 0, dy = 0;
+    Sprite sBackground(textureManager.getTexture(0)),
+        sPlat(textureManager.getTexture(1)),
+        sPers(textureManager.getTexture(2)), 
+        sWhitePlat(textureManager.getTexture(3)), 
+        sBluePlatfrom(textureManager.getTexture(4));
+    
+    Game game;
 
-    WhitePlatform platform;
-    platform.createPlatform(10);
+
+    WhitePlatform White_Platform;
+    Platform Green_Platform;
+
+    Green_Platform.createPlatform(5);
+    White_Platform.createPlatform(5);
+
     while (app.isOpen()) {
         Event e;
         while (app.pollEvent(e)) {
@@ -125,49 +206,35 @@ int main() {
 
         app.clear();
 
-        if (Keyboard::isKeyPressed(Keyboard::Right)) x += 4;
-        if (Keyboard::isKeyPressed(Keyboard::Left)) x -= 4;
+        if (Keyboard::isKeyPressed(Keyboard::Right)) game.x += 4;
+        if (Keyboard::isKeyPressed(Keyboard::Left)) game.x -= 4;
 
-        dy += 0.2;
-        y += dy;
+        game.TurnDown();
 
-        if (y > 500) dy = -10;
-      //  for (int i = 5; i < 10; ++i)
-    //    {
-      //      if (platform.getPlatformY(i)> 533)
-       //         if(platform.gettakenWhitePlatforms(i - 5))
-        //            platform.settakenWhitePlatforms(i - 5, false);
-     //   }
-        if (y < h)
-            platform.movePlatforms(-dy, y, h);
+        if (game.x > 400)
+            game.x = -40;
+        if (game.x < -40)
+            game.x = 400;
 
-        for (int i = 0; i < 10; ++i)
+        if (game.y > 500) game.dy = -10;
+        if (game.y < game.h)
         {
-            if (i < 5)
-            {
-                if ((x + 50 > platform.getPlatformX(i)) && (x + 20 < platform.getPlatformX(i) + 68) && (y + 70 > platform.getPlatformY(i)) && (y + 70 < platform.getPlatformY(i) + 14) && (dy > 0))
-                {
-                    dy = -10;
-                }
-            }
-            else
-            {
-                if ((x + 50 > platform.getPlatformX(i)) && (x + 20 < platform.getPlatformX(i) + 68) && (y + 70 > platform.getPlatformY(i)) && (y + 70 < platform.getPlatformY(i) + 14) && (dy > 0)&& !platform.gettakenWhitePlatforms(i-5))
-                {
-
-                    dy = -10;
-                    platform.settakenWhitePlatforms(i-5, true);
-                    WX = i;
-                }
-            }
-            
+            Green_Platform.movePlatforms(-game.dy, game.y, game.h);
+            White_Platform.movePlatforms(-game.dy, game.y, game.h);
         }
 
-        sPers.setPosition(x, y);
+        for (int i = 0; i < 5; ++i)
+        {
+                Green_Platform.TouchToGreenPlatform(game.x, game.y, game.dy, i);
+                White_Platform.TouchToWhitePlatform(game.x, game.y, game.dy, i);
+        }
+
+        sPers.setPosition(game.x, game.y);
 
         app.draw(sBackground);
         app.draw(sPers);
-        platform.drawPlatforms(app, sPlat, sWhitePlat);
+        Green_Platform.drawPlatforms(app, sPlat);
+        White_Platform.drawPlatforms(app,sWhitePlat);
 
         app.display();
     }
