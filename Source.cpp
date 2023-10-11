@@ -15,15 +15,38 @@ public:
         x = 100; 
         y = 100;
         h = 200;
-        dx = 0;
+        dx = 0; 
         dy = 0;
 
     }
-    void TurnDown()
+};
+
+class BasicMechanics
+{
+public:
+    void TurnDown(float& dy, int& y)
     {
         dy += 0.2;
         y += dy;
     }
+    void Teleport(int& x)
+    {
+        if (x > 400)
+            x = -40;
+        if (x < -40)
+            x = 400;
+    }
+    void Fall(bool& gameover, int y, int score, float& dy)
+    {
+        if (y > 520)
+        {
+            if (score != 0)
+                gameover = false;
+            else
+                dy = -10;
+        }
+    }
+
 };
 
 class Platform {
@@ -38,7 +61,7 @@ public:
     }
 
 
-    virtual void movePlatforms(float dy, int& y, int& h, Sprite score[], int fs[], int& sc) {
+     void movePlatforms(float dy, int& y, int& h, Sprite score[], int fs[], int& sc) {
         for (size_t i = 0; i < plat.size(); ++i) {
             y = h;
             plat[i].y = plat[i].y + dy;
@@ -112,7 +135,7 @@ public:
         }
     }
 
-    void TouchToGreenPlatform(int x, int y, float& dy, int index)
+    virtual void TouchToPlatform(int x, int y, float& dy, int index)
     {
         if ((x + 50 > getPlatformX(index)) && (x + 20 < getPlatformX(index) + 68) && (y + 70 > getPlatformY(index)) && (y + 70 < getPlatformY(index) + 14) && (dy > 0))
         {
@@ -149,9 +172,9 @@ public:
 
 
 
-     void movePlatforms(float dy, int& y, int& h, Sprite score[], int fs[], int& sc) override {
+     void movePlatforms(float dy, int& y,Sprite score[], int fs[], int& sc)  {
         for (size_t i = 0; i < plat.size(); ++i) {
-            y = h;
+            y = 200;
             plat[i].y = plat[i].y + dy;
             if (plat[i].y > 533) {
                 if (gettakenWhitePlatforms(i))
@@ -193,7 +216,7 @@ public:
     }
     
 
-    void TouchToWhitePlatform(int x, int y, float& dy, int index)
+    void TouchToPlatform(int x, int y, float& dy, int index) override
     {
         if ((x + 50 > getPlatformX(index)) && (x + 20 < getPlatformX(index) + 68) && (y + 70 > getPlatformY(index)) && (y + 70 < getPlatformY(index) + 14) && (dy > 0) && !gettakenWhitePlatforms(index))
         {
@@ -300,8 +323,8 @@ public:
         MovingPlatform::createPlatform(count);
     }
 
-    void moveplatforms(float dy, int& y, int& h, Sprite score[], int fs[], int& sc) {
-        WhitePlatform::movePlatforms(dy,y,h,score,fs,sc);
+    void moveplatforms(float dy, int& y,Sprite score[], int fs[], int& sc) {
+        WhitePlatform::movePlatforms(dy,y,score,fs,sc);
     }
 
     
@@ -314,6 +337,10 @@ private:
 class Level
 {
 public:
+    Level()
+    {
+        SetLevel();
+    }
     void SetLevel()
     {
         std::cout << "Виберіть рівень гри (easy, medium або hard): ";
@@ -326,11 +353,10 @@ public:
     }
 
 
-
-
 private:
     std::string level;
 };
+
 class EasyLevel
 {
 public:
@@ -417,7 +443,8 @@ public:
         {
             
             ++i;
-            sBomb.setPosition(200, 0);// Изменение объекта Sprite через ссылку
+            dx = rand() % 400;
+            sBomb.setPosition(dx, 0);// Изменение объекта Sprite через ссылку
             y = 0;
             std::cout << i << std::endl;
         }
@@ -428,17 +455,29 @@ public:
         if (y >= 0)
         {
             y += dy;
-            sBomb.setPosition(200, y);
+            sBomb.setPosition(dx, y);
         }
         if (y > 533)
         {
             sBomb.setPosition(-100, -100);
             y = -1;
         }
-    }
 
+    }
+    void BOOM(bool& gameover,Sprite sBomb,Sprite sPers)
+    {
+        FloatRect bombBounds = sBomb.getGlobalBounds();
+        FloatRect doodleBounds = sPers.getGlobalBounds();
+
+        if (bombBounds.intersects(doodleBounds)) {
+
+            std::cout << "boOOOOm" << std::endl;
+            gameover = false;
+        }
+    }
 private:
     int i;
+    int dx;
     Sprite& sBomb; // Ссылка на объект Sprite
 };
 
@@ -453,9 +492,10 @@ int main() {
     app.setFramerateLimit(60);
     Level level;
 
-    level.SetLevel();
 
     TextureManager textureManager;
+
+    BasicMechanics mech;
 
 
     Sprite sBackground(textureManager.getTexture(0)),
@@ -467,14 +507,21 @@ int main() {
         sBomb(textureManager.getTexture(7)),
         sYellowPlatform(textureManager.getTexture(8));
 
+    sBomb.setScale(15.0f / sBomb.getLocalBounds().width, 15.0f / sBomb.getLocalBounds().height);
+ 
+
+
+
+
     sGameOver.setPosition(0, 150);
+
+
 
     bool gameover = true;
        
     Game game;
 
     traps bomb(sBomb);
-    
 
     EasyLevel easyLevel;
     MediumLevel mediumLevel;
@@ -522,28 +569,28 @@ int main() {
 
         Blue_Platform.update();
         YellowPlatform.update();
-        game.TurnDown();
 
+        mech.TurnDown(game.dy,game.y);
 
-        if (game.x > 400)
-            game.x = -40;
-        if (game.x < -40)
-            game.x = 400;
+        mech.Teleport(game.x);
 
         bomb.createBomb(sc.GetCurrentScore());
+
         bomb.down();
 
-        if (game.y > 520) gameover = false;
+        bomb.BOOM(gameover, sBomb, sPers);
+
+        mech.Fall(gameover, game.y, sc.GetCurrentScore(),game.dy);
 
         if (game.y < game.h)
         {
             Green_Platform.movePlatforms(-game.dy, game.y, game.h, score, sc.GetFS(), sc.GetCurrentScore());
             if (level.GetLevel() == "m" or level.GetLevel() == "ha")
-                White_Platform.movePlatforms(-game.dy, game.y, game.h, score, sc.GetFS(), sc.GetCurrentScore());
+                White_Platform.movePlatforms(-game.dy, game.y, score, sc.GetFS(), sc.GetCurrentScore());
             if (level.GetLevel() == "ha")
             {
                 Blue_Platform.movePlatforms(-game.dy, game.y, game.h, score, sc.GetFS(), sc.GetCurrentScore());
-                YellowPlatform.moveplatforms(-game.dy, game.y, game.h, score, sc.GetFS(), sc.GetCurrentScore());
+                YellowPlatform.moveplatforms(-game.dy, game.y, score, sc.GetFS(), sc.GetCurrentScore());
             }
 
 
@@ -551,13 +598,13 @@ int main() {
 
         for (int i = 0; i < Size; ++i)
         {
-            Green_Platform.TouchToGreenPlatform(game.x, game.y, game.dy, i);
+            Green_Platform.TouchToPlatform(game.x, game.y, game.dy, i);
             if (level.GetLevel() == "m" or level.GetLevel() == "ha")
-                White_Platform.TouchToWhitePlatform(game.x, game.y, game.dy, i);
+                White_Platform.TouchToPlatform(game.x, game.y, game.dy, i);
             if (level.GetLevel() == "ha")
             {
-                Blue_Platform.TouchToGreenPlatform(game.x, game.y, game.dy, i);
-                YellowPlatform.TouchToWhitePlatform(game.x, game.y, game.dy, i);
+                Blue_Platform.TouchToPlatform(game.x, game.y, game.dy, i);
+                YellowPlatform.TouchToPlatform(game.x, game.y, game.dy, i);
             }
         }
   
